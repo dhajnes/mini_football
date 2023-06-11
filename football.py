@@ -31,7 +31,7 @@ class Player():
         self.prev_pos = pos
         self.prev_theta = self.theta
         self.velocity_vector = np.array([1,1])
-        self.speed_const = 2
+        self.speed_const = np.abs(2 + np.random.normal(0,1))
         self.ball_possesion = False
         self.r = PLAYER_RADIUS
         self.mode = mode
@@ -76,9 +76,16 @@ class Player():
             else:
                 # else evader
                 velocity_vector = -(closest_opponent.pos - self.pos)
+            if np.linalg.norm(velocity_vector) > 0.001:
+                self.velocity_vector = velocity_vector / np.linalg.norm(velocity_vector)
+            else:
+                self.velocity_vector = np.array([0,0])
 
-            self.velocity_vector = velocity_vector / np.linalg.norm(velocity_vector)
-
+class Ball():
+    def __init__(self):
+        self.pos = np.array([0,0])
+        self.vel_vec = np.array([0,0])
+        self.acc_vec = np.array([0,0])
 
 
 class Match():
@@ -91,6 +98,7 @@ class Match():
         self.players = []
         self.teams = []
         self.mode = mode
+        self.ball = Ball()
     
 
     def is_goal(self):
@@ -105,6 +113,12 @@ class Match():
         # draws the field, green square, white lines, goals etc
         pygame.draw.rect(SCREEN, GREEN, self.field)
         pygame.draw.rect(SCREEN, WHITE, (self.field_top_left[0], self.field_top_left[1], self.field_dims[0], self.field_dims[1]), 3)
+
+    def draw_ball(self):
+        # TODO ball collision
+        pass
+        # for player in self.players:
+        #     if player.pos
 
 
     def draw_players(self):
@@ -122,8 +136,10 @@ class Match():
             # draw the player body
             print("[DEBUG] player.pos: ", player.pos)
             pygame.draw.circle(SCREEN, TEAM_COLORS[player.team_ID], player.pos, player.r)
-
-            unit_speed = player.velocity_vector / np.linalg.norm(player.velocity_vector)
+            if np.linalg.norm(player.velocity_vector) > 0.001:
+                unit_speed = player.velocity_vector / np.linalg.norm(player.velocity_vector)
+            else:
+                unit_speed = np.array([0,0])
             direction_marker_x, direction_marker_y = int(player.pos[0] + unit_speed[0]*player.r), int(player.pos[1] + unit_speed[1]*player.r)
             # draw the direction marker
             pygame.draw.circle(SCREEN, BLACK, (direction_marker_x, direction_marker_y), 3)
@@ -158,11 +174,13 @@ class Match():
             players_dist = np.linalg.norm(player1.pos - player2.pos)
             allowed_dist = player1.r + player2.r
             if players_dist < allowed_dist:
-                # collision happening, move player2 away by the collision
-                new_player2_pos = player2.pos - allowed_dist - (player1.pos - player2.pos)
-                # new_player1_pos = player1.pos - allowed_dist - (player2.pos - player1.pos)
-                player2.pos[0], player2.pos[1] = int(np.ceil(new_player2_pos[0])), int(np.ceil(new_player2_pos[1]))
-                # player1.pos[0], player1.pos[1] = int(np.ceil(new_player1_pos[0])), int(np.ceil(new_player1_pos[1]))
+                scaled_vec_p1p2 = (player2.pos - player1.pos) / (np.linalg.norm((player2.pos - player1.pos))) * (allowed_dist-players_dist)/2
+
+                new_p1_pos = np.ceil(player1.pos - scaled_vec_p1p2)
+                new_p2_pos = np.ceil(player2.pos + scaled_vec_p1p2)
+
+                player1.pos = np.array(new_p1_pos, dtype=int)
+                player2.pos = np.array(new_p2_pos, dtype=int)
 
 
     def check_for_collisions(self):
@@ -200,7 +218,7 @@ def spawn_players(match, n_per_team = 2, n_teams = 2):
 
 
 match = Match(mode="pursuit")
-spawn_players(match=match, n_per_team=2, n_teams=2)
+spawn_players(match=match, n_per_team=10, n_teams=4)
 
 
 
